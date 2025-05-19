@@ -1,4 +1,4 @@
- # Leave of Absence Tracking System
+# Leave of Absence Tracking System
 
 A web application for tracking student leave of absence requests and attendance, with separate portals for teachers, students, and parents.
 
@@ -10,6 +10,7 @@ A web application for tracking student leave of absence requests and attendance,
   - Manage attendance records
   - Automatically mark excused students as absent but excused
   - View attendance history
+  - Approve/reject leave of absence requests
 
 - Student Portal
   - View personal schedule
@@ -28,6 +29,7 @@ A web application for tracking student leave of absence requests and attendance,
   - View attendance reports
   - Filter attendance by class and date range
   - Track leave of absence requests
+  - Manage user accounts
 
 ## Setup
 
@@ -49,7 +51,7 @@ flask db migrate
 flask db upgrade
 ```
 
-4. Load demo data (optional):
+4. Load demo data:
 ```bash
 python init_db.py
 ```
@@ -61,10 +63,42 @@ flask run
 
 ## Demo Accounts
 
-- Teacher: teacher@demo.com / password123
-- Student: student@demo.com / password123
-- Parent: parent@demo.com / password123
-- Admin: admin@school.com / admin123
+### Teachers
+- John Smith (smith@school.com / teacher123)
+- Sarah Jones (jones@school.com / teacher123)
+- Raj Patel (patel@school.com / teacher123)
+
+### Students
+- Jane Doe (jane.doe@school.com / student123) - 10th Grade
+- John Smith Jr. (john.smith@school.com / student123) - 9th Grade
+- Emma Wilson (emma.wilson@school.com / student123) - 11th Grade
+- Michael Brown (michael.brown@school.com / student123) - 10th Grade
+
+### Parents
+- Mary Doe (mary.doe@email.com / parent123)
+- Jane Smith (jane.smith@email.com / parent123)
+- David Wilson (david.wilson@email.com / parent123)
+- Lisa Brown (lisa.brown@email.com / parent123)
+
+### Admin
+- Admin User (admin@school.com / admin123)
+
+## Demo Classes
+
+### Mathematics (John Smith)
+- Algebra I (Monday 8:00-9:00)
+- Geometry (Monday 10:00-11:00)
+- Calculus (Wednesday 8:00-9:00)
+
+### Science (Sarah Jones)
+- Biology (Tuesday 8:00-9:00)
+- Chemistry (Tuesday 10:00-11:00)
+- Physics (Thursday 8:00-9:00)
+
+### English (Raj Patel)
+- English Literature (Monday 9:00-10:00)
+- Creative Writing (Wednesday 9:00-10:00)
+- Public Speaking (Friday 9:00-10:00)
 
 ## Recent Updates
 
@@ -74,3 +108,5 @@ flask run
 - Enhanced user management features
 - Added grade-based class assignments
 - Improved schedule management
+- Added comprehensive demo data with realistic class schedules
+- Implemented automatic attendance marking for excused students
