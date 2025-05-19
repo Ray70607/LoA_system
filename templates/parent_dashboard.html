@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block title %}Parent Dashboard - Leave of Absence System{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Parent Dashboard</h1>
+
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">My Children</h5>
+                <a href="{{ url_for('request_absence') }}" class="btn btn-primary">File Leave Request</a>
+            </div>
+            <div class="card-body">
+                {% for student in students %}
+                <div class="student-section mb-4">
+                    <h4>{{ student.user.name }} (Grade {{ student.grade }})</h4>
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th style="width: 100px">Time</th>
+                                    <th>Monday</th>
+                                    <th>Tuesday</th>
+                                    <th>Wednesday</th>
+                                    <th>Thursday</th>
+                                    <th>Friday</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% set time_slots = ['8:00-9:00', '9:00-10:00', '10:00-11:00', '11:00-12:00'] %}
+                                {% for time_slot in time_slots %}
+                                <tr>
+                                    <td class="align-middle">{{ time_slot }}</td>
+                                    {% for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] %}
+                                    <td>
+                                        {% for class in student.classes %}
+                                            {% if day in class.schedule and time_slot in class.schedule %}
+                                                <div class="class-slot position-relative" 
+                                                     data-bs-toggle="tooltip" 
+                                                     data-bs-placement="top"
+                                                     title="{{ class.name }} - {{ class.teacher.name }}">
+                                                    <div class="class-name">{{ class.name }}</div>
+                                                    <div class="class-teacher small text-muted">{{ class.teacher.name }}</div>
+                                                    {% for absence in absences %}
+                                                        {% if absence.student_id == student.id and absence.class_id == class.id and absence.date == today %}
+                                                            <div class="absence-status mt-1">
+                                                                {% if absence.status == 'approved' %}
+                                                                    <span class="badge bg-success">Excused</span>
+                                                                {% elif absence.status == 'pending' %}
+                                                                    <span class="badge bg-warning">Pending</span>
+                                                                {% else %}
+                                                                    <span class="badge bg-danger">Rejected</span>
+                                                                {% endif %}
+                                                            </div>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                </div>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </td>
+                                    {% endfor %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Recent Leave Requests</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Student</th>
+                                <th>Class</th>
+                                <th>Date</th>
+                                <th>Reason</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for absence in absences %}
+                                {% if absence.date >= today - timedelta(days=30) %}
+                                <tr>
+                                    <td>{{ absence.student.user.name }}</td>
+                                    <td>{{ absence.class_record.name }}</td>
+                                    <td>{{ absence.date.strftime('%Y-%m-%d') }}</td>
+                                    <td>{{ absence.reason }}</td>
+                                    <td>
+                                        <span class="badge {% if absence.status == 'approved' %}bg-success{% elif absence.status == 'pending' %}bg-warning{% else %}bg-danger{% endif %}">
+                                            {{ absence.status }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.student-section {
+    margin-bottom: 2rem;
+}
+
+.class-slot {
+    padding: 8px;
+    border-radius: 4px;
+    background-color: #f8f9fa;
+    margin-bottom: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.class-slot:hover {
+    background-color: #e9ecef;
+}
+
+.class-name {
+    font-weight: 500;
+}
+
+.class-teacher {
+    font-size: 0.85em;
+}
+
+.absence-status {
+    margin-top: 4px;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize all tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    });
+});
+</script>
+{% endblock %} 

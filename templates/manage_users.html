@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Manage Users</h2>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td>{{ user.id }}</td>
+                    <td>{{ user.name }}</td>
+                    <td>{{ user.email }}</td>
+                    <td>{{ user.role }}</td>
+                    <td>
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#updateRoleModal{{ user.id }}">
+                                Update Role
+                            </button>
+                            <form action="{{ url_for('manage_users') }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this user?');">
+                                <input type="hidden" name="user_id" value="{{ user.id }}">
+                                <input type="hidden" name="action" value="delete">
+                                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                            </form>
+                        </div>
+                        
+                        <!-- Update Role Modal -->
+                        <div class="modal fade" id="updateRoleModal{{ user.id }}" tabindex="-1" aria-labelledby="updateRoleModalLabel{{ user.id }}" aria-hidden="true">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title" id="updateRoleModalLabel{{ user.id }}">Update Role for {{ user.name }}</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <form action="{{ url_for('manage_users') }}" method="POST">
+                                        <div class="modal-body">
+                                            <input type="hidden" name="user_id" value="{{ user.id }}">
+                                            <input type="hidden" name="action" value="update_role">
+                                            <div class="mb-3">
+                                                <label for="role{{ user.id }}" class="form-label">Select Role</label>
+                                                <select class="form-select" id="role{{ user.id }}" name="role" required>
+                                                    <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
+                                                    <option value="teacher" {% if user.role == 'teacher' %}selected{% endif %}>Teacher</option>
+                                                    <option value="student" {% if user.role == 'student' %}selected{% endif %}>Student</option>
+                                                    <option value="parent" {% if user.role == 'parent' %}selected{% endif %}>Parent</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                            <button type="submit" class="btn btn-primary">Update Role</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %} 

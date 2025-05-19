@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - Leave of Absence System{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Admin Dashboard</h1>
+
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Pending Leave Requests</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Student</th>
+                                <th>Class</th>
+                                <th>Date</th>
+                                <th>Reason</th>
+                                <th>Submitted</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for request in pending_requests %}
+                            <tr>
+                                <td>{{ request.student.user.name }}</td>
+                                <td>{{ request.class_record.name }}</td>
+                                <td>{{ request.date.strftime('%Y-%m-%d') }}</td>
+                                <td>{{ request.reason }}</td>
+                                <td>{{ request.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>
+                                    <form method="POST" action="{{ url_for('admin_update_request', request_id=request.id) }}" class="d-inline">
+                                        <input type="hidden" name="action" value="approve">
+                                        <button type="submit" class="btn btn-success btn-sm">Approve</button>
+                                    </form>
+                                    <form method="POST" action="{{ url_for('admin_update_request', request_id=request.id) }}" class="d-inline">
+                                        <input type="hidden" name="action" value="reject">
+                                        <button type="submit" class="btn btn-danger btn-sm">Reject</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Recent Requests (Last 30 Days)</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Student</th>
+                                <th>Class</th>
+                                <th>Date</th>
+                                <th>Reason</th>
+                                <th>Status</th>
+                                <th>Submitted</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for request in recent_requests %}
+                            <tr>
+                                <td>{{ request.student.user.name }}</td>
+                                <td>{{ request.class_record.name }}</td>
+                                <td>{{ request.date.strftime('%Y-%m-%d') }}</td>
+                                <td>{{ request.reason }}</td>
+                                <td>
+                                    <span class="badge {% if request.status == 'approved' %}bg-success{% elif request.status == 'pending' %}bg-warning{% else %}bg-danger{% endif %}">
+                                        {{ request.status }}
+                                    </span>
+                                </td>
+                                <td>{{ request.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    <a href="{{ url_for('manage_users') }}" class="list-group-item list-group-item-action">
+                        Manage Users
+                    </a>
+                    <a href="{{ url_for('attendance_reports') }}" class="list-group-item list-group-item-action">
+                        View Attendance Reports
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

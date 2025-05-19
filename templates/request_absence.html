@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Request Leave of Absence - Leave of Absence System{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Request Leave of Absence</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="student_id" class="form-label">Student</label>
+                        <select class="form-select" id="student_id" name="student_id" required>
+                            <option value="">Select a student</option>
+                            {% for student in students %}
+                            <option value="{{ student.id }}" data-grade="{{ student.grade }}">{{ student.user.name }} (Grade {{ student.grade }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="date" class="form-label">Date of Absence</label>
+                        <input type="date" class="form-control" id="date" name="date" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="class_id" class="form-label">Class</label>
+                        <select class="form-select" id="class_id" name="class_id" required disabled>
+                            <option value="">Select a class</option>
+                            {% for class in classes %}
+                            <option value="{{ class.id }}" 
+                                    data-schedule="{{ class.schedule }}"
+                                    data-teacher="{{ class.teacher.name }}">
+                                {{ class.name }} ({{ class.schedule }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div id="no-classes-message" class="form-text text-muted d-none">
+                            No classes scheduled for the selected date.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="reason" class="form-label">Reason for Absence</label>
+                        <textarea class="form-control" id="reason" name="reason" rows="3" required></textarea>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">Submit Request</button>
+                        <a href="{{ url_for('parent_dashboard') }}" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const studentSelect = document.getElementById('student_id');
+    const dateInput = document.getElementById('date');
+    const classSelect = document.getElementById('class_id');
+    const noClassesMessage = document.getElementById('no-classes-message');
+    
+    // Set minimum date to today
+    const today = new Date();
+    dateInput.min = today.toISOString().split('T')[0];
+    
+    // Store all class options
+    const allClassOptions = Array.from(classSelect.options);
+    
+    function getDayOfWeek(date) {
+        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        return days[date.getDay()];
+    }
+    
+    function updateClassOptions() {
+        const selectedDate = new Date(dateInput.value);
+        const dayOfWeek = getDayOfWeek(selectedDate);
+        const selectedStudentId = studentSelect.value;
+        
+        // Clear current options
+        classSelect.innerHTML = '<option value="">Select a class</option>';
+        classSelect.disabled = true;
+        noClassesMessage.classList.add('d-none');
+        
+        if (!selectedStudentId || !dateInput.value) {
+            return;
+        }
+        
+        // Filter classes for the selected day
+        const availableClasses = allClassOptions.filter(option => {
+            if (!option.value) return false; // Skip the default option
+            const schedule = option.dataset.schedule;
+            return schedule.includes(dayOfWeek);
+        });
+        
+        if (availableClasses.length > 0) {
+            availableClasses.forEach(option => {
+                const newOption = option.cloneNode(true);
+                classSelect.appendChild(newOption);
+            });
+            classSelect.disabled = false;
+        } else {
+            noClassesMessage.classList.remove('d-none');
+        }
+    }
+    
+    // Add event listeners
+    studentSelect.addEventListener('change', updateClassOptions);
+    dateInput.addEventListener('change', updateClassOptions);
+});
+</script>
+{% endblock %} 

@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Teacher Dashboard - Leave of Absence System{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Teacher Dashboard</h1>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Weekly Schedule</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th style="width: 100px">Time</th>
+                                <th>Monday</th>
+                                <th>Tuesday</th>
+                                <th>Wednesday</th>
+                                <th>Thursday</th>
+                                <th>Friday</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% set time_slots = ['8:00-9:00', '9:00-10:00', '10:00-11:00', '11:00-12:00'] %}
+                            {% for time_slot in time_slots %}
+                            <tr>
+                                <td class="align-middle">{{ time_slot }}</td>
+                                {% for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] %}
+                                <td>
+                                    {% for class in classes %}
+                                        {% if day in class.schedule and time_slot in class.schedule %}
+                                            <div class="class-slot position-relative" 
+                                                 data-bs-toggle="tooltip" 
+                                                 data-bs-placement="top"
+                                                 title="{{ class.name }} - {{ class.students|length }} students">
+                                                <div class="class-name">
+                                                    <a href="{{ url_for('record_attendance', class_id=class.id) }}" class="text-decoration-none">
+                                                        {{ class.name }}
+                                                    </a>
+                                                </div>
+                                                <div class="class-info small text-muted">
+                                                    {{ class.students|length }} students
+                                                </div>
+                                                <div class="excused-students mt-2">
+                                                    {% for absence in absences %}
+                                                        {% if absence.class_id == class.id and absence.status == 'approved' %}
+                                                            <div class="excused-student">
+                                                                <span class="badge bg-success">{{ absence.student.user.name }}</span>
+                                                            </div>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                </td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Pending Leave Requests</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Student</th>
+                                <th>Class</th>
+                                <th>Date</th>
+                                <th>Reason</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for absence in absences %}
+                                {% if absence.status == 'pending' %}
+                                <tr>
+                                    <td>{{ absence.student.user.name }}</td>
+                                    <td>{{ absence.class_record.name }}</td>
+                                    <td>{{ absence.date.strftime('%Y-%m-%d') }}</td>
+                                    <td>{{ absence.reason }}</td>
+                                    <td>
+                                        <form method="POST" action="{{ url_for('update_absence_status', absence_id=absence.id) }}" class="d-inline">
+                                            <input type="hidden" name="status" value="approved">
+                                            <button type="submit" class="btn btn-success btn-sm">Approve</button>
+                                        </form>
+                                        <form method="POST" action="{{ url_for('update_absence_status', absence_id=absence.id) }}" class="d-inline">
+                                            <input type="hidden" name="status" value="rejected">
+                                            <button type="submit" class="btn btn-danger btn-sm">Reject</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.class-slot {
+    padding: 8px;
+    border-radius: 4px;
+    background-color: #f8f9fa;
+    margin-bottom: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.class-slot:hover {
+    background-color: #e9ecef;
+}
+
+.class-name {
+    font-weight: 500;
+}
+
+.class-info {
+    font-size: 0.85em;
+}
+
+.excused-students {
+    margin-top: 4px;
+}
+
+.excused-student {
+    margin-bottom: 2px;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize all tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    });
+});
+</script>
+{% endblock %} 
