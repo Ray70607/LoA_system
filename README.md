@@ -89,16 +89,19 @@ flask run
 - Algebra I (Monday 8:00-9:00)
 - Geometry (Monday 10:00-11:00)
 - Calculus (Wednesday 8:00-9:00)
+- Advanced Mathematics (Monday 18:30-20:00)
 
 ### Science (Sarah Jones)
 - Biology (Tuesday 8:00-9:00)
 - Chemistry (Tuesday 10:00-11:00)
 - Physics (Thursday 8:00-9:00)
+- Advanced Science (Tuesday 20:10-21:20)
 
 ### English (Raj Patel)
 - English Literature (Monday 9:00-10:00)
 - Creative Writing (Wednesday 9:00-10:00)
 - Public Speaking (Friday 9:00-10:00)
+- Advanced English (Wednesday 21:40-22:20)
 
 ## Recent Updates
 

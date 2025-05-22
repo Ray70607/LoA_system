@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Schedules - Leave of Absence System{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Manage Teacher Schedules</h2>
+    <form method="GET" class="mb-4">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label for="teacher_id" class="form-label">Select Teacher</label>
+                <select class="form-select" id="teacher_id" name="teacher_id" onchange="this.form.submit()" required>
+                    <option value="">Choose...</option>
+                    {% for teacher in teachers %}
+                        <option value="{{ teacher.id }}" {% if teacher.id == selected_teacher_id %}selected{% endif %}>{{ teacher.name }} ({{ teacher.email }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </form>
+
+    {% if selected_teacher %}
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Classes for {{ selected_teacher.name }}</h5>
+            <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#addClassModal">Add Class</button>
+        </div>
+        <div class="card-body">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Class Name</th>
+                        <th>Schedule</th>
+                        <th>Students</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for class in teacher_classes %}
+                    <tr>
+                        <td>{{ class.name }}</td>
+                        <td>{{ class.schedule }}</td>
+                        <td>
+                            <ul class="list-unstyled mb-0">
+                                {% for student in class.students %}
+                                <li>
+                                    {{ student.user.name }}
+                                    <form method="POST" action="{{ url_for('remove_student_from_class', class_id=class.id, student_id=student.id) }}" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger ms-2">Remove</button>
+                                    </form>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            <form method="POST" action="{{ url_for('add_student_to_class', class_id=class.id) }}" class="mt-2 d-flex">
+                                <select class="form-select form-select-sm me-2" name="student_id" required>
+                                    <option value="">Add student...</option>
+                                    {% for student in all_students %}
+                                        {% if student not in class.students %}
+                                            <option value="{{ student.id }}">{{ student.user.name }} ({{ student.grade }})</option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                                <button type="submit" class="btn btn-sm btn-outline-primary">Add</button>
+                            </form>
+                        </td>
+                        <td>
+                            <form method="POST" action="{{ url_for('remove_class', class_id=class.id) }}" class="d-inline">
+                                <button type="submit" class="btn btn-danger btn-sm">Remove Class</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Add Class Modal -->
+    <div class="modal fade" id="addClassModal" tabindex="-1" aria-labelledby="addClassModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="POST" action="{{ url_for('add_class', teacher_id=selected_teacher.id) }}">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addClassModalLabel">Add New Class</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="class_name" class="form-label">Class Name</label>
+                            <input type="text" class="form-control" id="class_name" name="class_name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="day" class="form-label">Day</label>
+                            <select class="form-select" id="day" name="day" required>
+                                <option value="">Select day...</option>
+                                <option value="Monday">Monday</option>
+                                <option value="Tuesday">Tuesday</option>
+                                <option value="Wednesday">Wednesday</option>
+                                <option value="Thursday">Thursday</option>
+                                <option value="Friday">Friday</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="time" class="form-label">Time</label>
+                            <select class="form-select" id="time" name="time" required>
+                                <option value="">Select time...</option>
+                                <option value="8:00-9:00">8:00-9:00</option>
+                                <option value="9:00-10:00">9:00-10:00</option>
+                                <option value="10:00-11:00">10:00-11:00</option>
+                                <option value="11:00-12:00">11:00-12:00</option>
+                                <option value="18:30-20:00">18:30-20:00</option>
+                                <option value="20:10-21:20">20:10-21:20</option>
+                                <option value="21:40-22:20">21:40-22:20</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-success">Add Class</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %} 

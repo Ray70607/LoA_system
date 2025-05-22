@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, flash, request
+from flask import Flask, render_template, redirect, url_for, flash, request, abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -305,6 +305,55 @@ def admin_update_request(request_id):
     
     return redirect(url_for('admin_dashboard'))
 
+@app.route('/admin/add_user', methods=['GET', 'POST'])
+@login_required
+def add_user():
+    if current_user.role != 'admin':
+        flash('Access denied.', 'danger')
+        return redirect(url_for('index'))
+    
+    if request.method == 'POST':
+        name = request.form.get('name')
+        email = request.form.get('email')
+        role = request.form.get('role')
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+        
+        # Validate input
+        if not all([name, email, role, password, confirm_password]):
+            flash('All fields are required.', 'danger')
+            return redirect(url_for('add_user'))
+        
+        if password != confirm_password:
+            flash('Passwords do not match.', 'danger')
+            return redirect(url_for('add_user'))
+        
+        # Check if email already exists
+        if User.query.filter_by(email=email).first():
+            flash('Email address already in use.', 'danger')
+            return redirect(url_for('add_user'))
+        
+        # Create new user
+        new_user = User(
+            name=name,
+            email=email,
+            role=role
+        )
+        new_user.set_password(password)
+        
+        try:
+            db.session.add(new_user)
+            db.session.commit()
+            flash('User added successfully.', 'success')
+            return redirect(url_for('manage_users'))
+        except Exception as e:
+            db.session.rollback()
+            flash('Error adding user.', 'danger')
+            print(f"Error: {str(e)}")
+            return redirect(url_for('add_user'))
+    
+    return render_template('add_user.html')
+
 @app.route('/admin/manage_users', methods=['GET', 'POST'])
 @login_required
 def manage_users():
@@ -329,6 +378,16 @@ def manage_users():
                 flash('User role updated successfully.', 'success')
             else:
                 flash('Invalid role selected.', 'danger')
+        elif action == 'reset_password':
+            new_password = request.form.get('new_password')
+            confirm_password = request.form.get('confirm_password')
+            
+            if new_password != confirm_password:
+                flash('Passwords do not match.', 'danger')
+            else:
+                user.set_password(new_password)
+                db.session.commit()
+                flash('Password reset successfully.', 'success')
     
     # Get all users
     users = User.query.all()
@@ -487,6 +546,115 @@ def attendance_reports():
                          selected_class=class_id,
                          start_date=start_date,
                          end_date=end_date)
+
+@app.route('/change_password', methods=['GET', 'POST'])
+@login_required
+def change_password():
+    if request.method == 'POST':
+        current_password = request.form.get('current_password')
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+        
+        # Verify current password
+        if not current_user.check_password(current_password):
+            flash('Current password is incorrect', 'danger')
+            return redirect(url_for('change_password'))
+        
+        # Verify new passwords match
+        if new_password != confirm_password:
+            flash('New passwords do not match', 'danger')
+            return redirect(url_for('change_password'))
+        
+        # Update password
+        current_user.set_password(new_password)
+        db.session.commit()
+        flash('Password changed successfully', 'success')
+        return redirect(url_for('index'))
+    
+    return render_template('change_password.html')
+
+@app.route('/admin/manage_schedules', methods=['GET'])
+@login_required
+def manage_schedules():
+    if current_user.role != 'admin':
+        abort(403)
+    teachers = User.query.filter_by(role='teacher').all()
+    all_students = Student.query.all()
+    teacher_id = request.args.get('teacher_id', type=int)
+    selected_teacher = User.query.get(teacher_id) if teacher_id else None
+    teacher_classes = Class.query.filter_by(teacher_id=teacher_id).all() if teacher_id else []
+    return render_template('manage_schedules.html',
+        teachers=teachers,
+        selected_teacher=selected_teacher,
+        selected_teacher_id=teacher_id,
+        teacher_classes=teacher_classes,
+        all_students=all_students)
+
+@app.route('/admin/add_class/<int:teacher_id>', methods=['POST'])
+@login_required
+def add_class(teacher_id):
+    if current_user.role != 'admin':
+        abort(403)
+    class_name = request.form.get('class_name')
+    day = request.form.get('day')
+    time = request.form.get('time')
+    if not class_name or not day or not time:
+        flash('Class name, day, and time are required.', 'danger')
+        return redirect(url_for('manage_schedules', teacher_id=teacher_id))
+    schedule = f"{day} {time}"
+    new_class = Class(name=class_name, teacher_id=teacher_id, schedule=schedule)
+    db.session.add(new_class)
+    db.session.commit()
+    flash('Class added successfully.', 'success')
+    return redirect(url_for('manage_schedules', teacher_id=teacher_id))
+
+@app.route('/admin/remove_class/<int:class_id>', methods=['POST'])
+@login_required
+def remove_class(class_id):
+    if current_user.role != 'admin':
+        abort(403)
+    class_obj = Class.query.get_or_404(class_id)
+    teacher_id = class_obj.teacher_id
+    db.session.delete(class_obj)
+    db.session.commit()
+    flash('Class removed successfully.', 'success')
+    return redirect(url_for('manage_schedules', teacher_id=teacher_id))
+
+@app.route('/admin/add_student_to_class/<int:class_id>', methods=['POST'])
+@login_required
+def add_student_to_class(class_id):
+    if current_user.role != 'admin':
+        abort(403)
+    student_id = request.form.get('student_id', type=int)
+    class_obj = Class.query.get_or_404(class_id)
+    student = Student.query.get_or_404(student_id)
+    # Safety check: prevent schedule conflict
+    for other_class in student.classes:
+        if other_class.schedule == class_obj.schedule:
+            flash(f'Student is already enrolled in another class ("{other_class.name}") at the same time ("{other_class.schedule}").', 'danger')
+            return redirect(url_for('manage_schedules', teacher_id=class_obj.teacher_id))
+    if student not in class_obj.students:
+        class_obj.students.append(student)
+        db.session.commit()
+        flash('Student added to class.', 'success')
+    else:
+        flash('Student already in class.', 'warning')
+    return redirect(url_for('manage_schedules', teacher_id=class_obj.teacher_id))
+
+@app.route('/admin/remove_student_from_class/<int:class_id>/<int:student_id>', methods=['POST'])
+@login_required
+def remove_student_from_class(class_id, student_id):
+    if current_user.role != 'admin':
+        abort(403)
+    class_obj = Class.query.get_or_404(class_id)
+    student = Student.query.get_or_404(student_id)
+    if student in class_obj.students:
+        class_obj.students.remove(student)
+        db.session.commit()
+        flash('Student removed from class.', 'success')
+    else:
+        flash('Student not in class.', 'warning')
+    return redirect(url_for('manage_schedules', teacher_id=class_obj.teacher_id))
 
 if __name__ == '__main__':
     with app.app_context():

@@ -97,16 +97,19 @@ def init_db():
             Class(name='Algebra I', teacher_id=teachers[0].id, schedule='Monday 8:00-9:00'),
             Class(name='Geometry', teacher_id=teachers[0].id, schedule='Monday 10:00-11:00'),
             Class(name='Calculus', teacher_id=teachers[0].id, schedule='Wednesday 8:00-9:00'),
+            Class(name='Advanced Mathematics', teacher_id=teachers[0].id, schedule='Monday 18:30-20:00'),
             
             # Science classes
             Class(name='Biology', teacher_id=teachers[1].id, schedule='Tuesday 8:00-9:00'),
             Class(name='Chemistry', teacher_id=teachers[1].id, schedule='Tuesday 10:00-11:00'),
             Class(name='Physics', teacher_id=teachers[1].id, schedule='Thursday 8:00-9:00'),
+            Class(name='Advanced Science', teacher_id=teachers[1].id, schedule='Tuesday 20:10-21:20'),
             
             # English classes
             Class(name='English Literature', teacher_id=teachers[2].id, schedule='Monday 9:00-10:00'),
             Class(name='Creative Writing', teacher_id=teachers[2].id, schedule='Wednesday 9:00-10:00'),
-            Class(name='Public Speaking', teacher_id=teachers[2].id, schedule='Friday 9:00-10:00')
+            Class(name='Public Speaking', teacher_id=teachers[2].id, schedule='Friday 9:00-10:00'),
+            Class(name='Advanced English', teacher_id=teachers[2].id, schedule='Wednesday 21:40-22:20')
         ]
         db.session.add_all(classes)
         db.session.commit()
