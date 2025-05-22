@@ -1,10 +1,12 @@
-from flask import Flask, render_template, redirect, url_for, flash, request, abort
+from flask import Flask, render_template, redirect, url_for, flash, request, abort, send_file
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 from flask_migrate import Migrate
 import os
+import csv
+from io import StringIO, BytesIO
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'  # Change this in production
@@ -29,7 +31,7 @@ class User(UserMixin, db.Model):
     # Relationships
     student_record = db.relationship('Student', backref='user', uselist=False, foreign_keys='Student.user_id')
     parent_of = db.relationship('Student', backref='parent', foreign_keys='Student.parent_id')
-    classes = db.relationship('Class', backref='teacher', foreign_keys='Class.teacher_id')
+    taught_classes = db.relationship('Class', backref='teacher', foreign_keys='Class.teacher_id')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -45,22 +47,34 @@ class Student(db.Model):
 
     # Relationships
     absences = db.relationship('LeaveOfAbsence', backref='student', lazy=True)
-    classes = db.relationship('Class', secondary='student_class', backref='students')
+    class_enrollments = db.relationship('ClassStudent', backref='student', lazy=True)
 
 class Class(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     teacher_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    schedule = db.Column(db.String(100), nullable=False)  # e.g., "Monday 9:00-10:00"
+    schedule = db.Column(db.String(100), nullable=False)
 
     # Relationships
+    classrooms = db.relationship('Classroom', backref='class_obj', lazy=True)
+    enrollments = db.relationship('ClassStudent', backref='class_obj', lazy=True)
     absences = db.relationship('LeaveOfAbsence', backref='class_record', lazy=True)
 
-# Association table for Student-Class many-to-many relationship
-student_class = db.Table('student_class',
-    db.Column('student_id', db.Integer, db.ForeignKey('student.id'), primary_key=True),
-    db.Column('class_id', db.Integer, db.ForeignKey('class.id'), primary_key=True)
-)
+class Classroom(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    class_id = db.Column(db.Integer, db.ForeignKey('class.id'), nullable=False)
+    enrollments = db.relationship('ClassStudent', backref='classroom', lazy=True)
+
+class ClassStudent(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    class_id = db.Column(db.Integer, db.ForeignKey('class.id'), nullable=False)
+    student_id = db.Column(db.Integer, db.ForeignKey('student.id'), nullable=False)
+    classroom_id = db.Column(db.Integer, db.ForeignKey('classroom.id'), nullable=False)
+
+    __table_args__ = (
+        db.UniqueConstraint('class_id', 'student_id', name='unique_class_student'),
+    )
 
 class LeaveOfAbsence(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -157,12 +171,12 @@ def student_dashboard():
     # Get all absences for this student
     absences = LeaveOfAbsence.query.filter_by(student_id=student.id).order_by(LeaveOfAbsence.date.desc()).all()
     
-    # Get all classes for this student
-    classes = student.classes
+    # Get all class enrollments for this student
+    enrollments = ClassStudent.query.filter_by(student_id=student.id).all()
     
     return render_template('student_dashboard.html', 
                          absences=absences, 
-                         classes=classes, 
+                         enrollments=enrollments, 
                          today=datetime.now().date())
 
 @app.route('/parent/dashboard')
@@ -213,10 +227,13 @@ def request_absence():
             flash('Invalid student selected')
             return redirect(url_for('request_absence'))
         
-        # Verify the class is scheduled for the selected date
-        selected_class = Class.query.get(class_id)
-        if not selected_class:
-            flash('Invalid class selected')
+        # Verify the student is enrolled in this class
+        enrollment = ClassStudent.query.filter_by(
+            student_id=student_id,
+            class_id=class_id
+        ).first()
+        if not enrollment:
+            flash('Student is not enrolled in this class')
             return redirect(url_for('request_absence'))
         
         # Check if there's already a pending or approved request for this student, class, and date
@@ -405,13 +422,6 @@ def record_attendance(class_id):
         flash('Access denied.', 'danger')
         return redirect(url_for('index'))
     
-    # Get date from query parameters or use today's date
-    date_str = request.args.get('date')
-    if date_str:
-        date = datetime.strptime(date_str, '%Y-%m-%d').date()
-    else:
-        date = datetime.now().date()
-    
     # Parse the schedule to get the day of week
     schedule_parts = class_record.schedule.split()
     class_day = schedule_parts[0]  # e.g., "Monday"
@@ -421,6 +431,18 @@ def record_attendance(class_id):
     }
     day_of_week = days_ahead[class_day]
     
+    # Get date from query parameters or find next class date
+    date_str = request.args.get('date')
+    if date_str:
+        date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    else:
+        # Find the next class date
+        today = datetime.now().date()
+        days_until_next = (day_of_week - today.weekday()) % 7
+        if days_until_next == 0 and datetime.now().time() >= datetime.strptime(schedule_parts[1].split('-')[0], '%H:%M').time():
+            days_until_next = 7
+        date = today + timedelta(days=days_until_next)
+    
     # Get next 5 class dates
     next_class_dates = []
     current_date = date
@@ -429,26 +451,25 @@ def record_attendance(class_id):
             next_class_dates.append(current_date)
         current_date += timedelta(days=1)
     
-    # Get approved absences for the selected date and class
-    absences = LeaveOfAbsence.query.filter(
+    # Get all leave requests for this class and date
+    leave_requests = LeaveOfAbsence.query.filter(
         LeaveOfAbsence.class_id == class_id,
-        LeaveOfAbsence.date == date,
-        LeaveOfAbsence.status == 'approved'
-    ).all()
+        LeaveOfAbsence.date == date
+    ).order_by(LeaveOfAbsence.date.desc()).all()
     
     # Get list of student IDs with approved absences
-    excused_student_ids = {absence.student_id for absence in absences}
+    excused_student_ids = {request.student_id for request in leave_requests if request.status == 'approved'}
+    
+    # Get existing attendance records for this date
+    existing_records = {
+        record.student_id: record 
+        for record in Attendance.query.filter_by(
+            class_id=class_id,
+            date=date
+        ).all()
+    }
     
     if request.method == 'POST':
-        # Get existing attendance records for this date
-        existing_records = {
-            record.student_id: record 
-            for record in Attendance.query.filter_by(
-                class_id=class_id,
-                date=date
-            ).all()
-        }
-        
         # First, handle excused absences
         for student_id in excused_student_ids:
             if student_id in existing_records:
@@ -467,21 +488,21 @@ def record_attendance(class_id):
                 db.session.add(record)
         
         # Then handle regular attendance for non-excused students
-        for student in class_record.students:
+        for enrollment in class_record.enrollments:
             # Skip if student has an approved absence
-            if student.id in excused_student_ids:
+            if enrollment.student_id in excused_student_ids:
                 continue
                 
-            is_present = request.form.get(f'present_{student.id}') == 'on'
-            if student.id in existing_records:
-                record = existing_records[student.id]
+            is_present = request.form.get(f'present_{enrollment.student_id}') == 'on'
+            if enrollment.student_id in existing_records:
+                record = existing_records[enrollment.student_id]
                 record.is_present = is_present
                 record.is_excused = False
             else:
                 record = Attendance(
                     date=date,
                     class_id=class_id,
-                    student_id=student.id,
+                    student_id=enrollment.student_id,
                     teacher_id=current_user.id,
                     is_present=is_present,
                     is_excused=False
@@ -499,14 +520,25 @@ def record_attendance(class_id):
         return redirect(url_for('record_attendance', class_id=class_id, date=date.strftime('%Y-%m-%d')))
     
     # Get list of students to show in attendance form (excluding excused students)
-    students_to_show = [student for student in class_record.students if student.id not in excused_student_ids]
+    students_to_show = [enrollment for enrollment in class_record.enrollments if enrollment.student_id not in excused_student_ids]
     
+    # Get the approved absences for display
+    approved_absences = [request for request in leave_requests]
+
+    print("leave_requests are:", leave_requests)
+
+    # absences = LeaveOfAbsence.query.filter(
+    #     LeaveOfAbsence.class_id.in_(class_ids)
+    # ).order_by(LeaveOfAbsence.date.desc()).all()
+
+
     return render_template('record_attendance.html',
                          class_record=class_record,
                          date=date,
                          next_class_dates=next_class_dates,
-                         absences=absences,
-                         students_to_show=students_to_show)
+                         absences=approved_absences,
+                         students_to_show=students_to_show,
+                         existing_records=existing_records)
 
 @app.route('/admin/attendance-reports')
 @login_required
@@ -539,6 +571,8 @@ def attendance_reports():
     
     # Get attendance records
     attendance_records = query.order_by(Attendance.date.desc()).all()
+
+    
     
     return render_template('attendance_reports.html',
                          attendance_records=attendance_records,
@@ -583,12 +617,20 @@ def manage_schedules():
     teacher_id = request.args.get('teacher_id', type=int)
     selected_teacher = User.query.get(teacher_id) if teacher_id else None
     teacher_classes = Class.query.filter_by(teacher_id=teacher_id).all() if teacher_id else []
+    
+    # Get student enrollments for each class
+    class_enrollments = {}
+    for class_obj in teacher_classes:
+        enrollments = ClassStudent.query.filter_by(class_id=class_obj.id).all()
+        class_enrollments[class_obj.id] = enrollments
+    
     return render_template('manage_schedules.html',
         teachers=teachers,
         selected_teacher=selected_teacher,
         selected_teacher_id=teacher_id,
         teacher_classes=teacher_classes,
-        all_students=all_students)
+        all_students=all_students,
+        class_enrollments=class_enrollments)
 
 @app.route('/admin/add_class/<int:teacher_id>', methods=['POST'])
 @login_required
@@ -598,14 +640,24 @@ def add_class(teacher_id):
     class_name = request.form.get('class_name')
     day = request.form.get('day')
     time = request.form.get('time')
-    if not class_name or not day or not time:
-        flash('Class name, day, and time are required.', 'danger')
+    classroom_names = request.form.getlist('classroom_names[]')
+    
+    if not class_name or not day or not time or not classroom_names:
+        flash('Class name, day, time, and at least one classroom are required.', 'danger')
         return redirect(url_for('manage_schedules', teacher_id=teacher_id))
+    
     schedule = f"{day} {time}"
     new_class = Class(name=class_name, teacher_id=teacher_id, schedule=schedule)
     db.session.add(new_class)
+    db.session.flush()  # Get the new class ID
+    
+    # Create classrooms
+    for name in classroom_names:
+        classroom = Classroom(name=name, class_id=new_class.id)
+        db.session.add(classroom)
+    
     db.session.commit()
-    flash('Class added successfully.', 'success')
+    flash('Class and classrooms added successfully.', 'success')
     return redirect(url_for('manage_schedules', teacher_id=teacher_id))
 
 @app.route('/admin/remove_class/<int:class_id>', methods=['POST'])
@@ -626,19 +678,36 @@ def add_student_to_class(class_id):
     if current_user.role != 'admin':
         abort(403)
     student_id = request.form.get('student_id', type=int)
+    classroom_id = request.form.get('classroom_id', type=int)
     class_obj = Class.query.get_or_404(class_id)
     student = Student.query.get_or_404(student_id)
+    classroom = Classroom.query.get_or_404(classroom_id)
+    
     # Safety check: prevent schedule conflict
-    for other_class in student.classes:
-        if other_class.schedule == class_obj.schedule:
-            flash(f'Student is already enrolled in another class ("{other_class.name}") at the same time ("{other_class.schedule}").', 'danger')
+    for other_class in student.class_enrollments:
+        if other_class.class_obj.schedule == class_obj.schedule:
+            flash(f'Student is already enrolled in another class ("{other_class.class_obj.name}") at the same time ("{other_class.class_obj.schedule}").', 'danger')
             return redirect(url_for('manage_schedules', teacher_id=class_obj.teacher_id))
-    if student not in class_obj.students:
-        class_obj.students.append(student)
+    
+    # Check if student is already in this class
+    existing_enrollment = ClassStudent.query.filter_by(
+        class_id=class_id,
+        student_id=student_id
+    ).first()
+    
+    if existing_enrollment:
+        flash('Student already in class.', 'warning')
+    else:
+        # Create new enrollment with classroom
+        enrollment = ClassStudent(
+            class_id=class_id,
+            student_id=student_id,
+            classroom_id=classroom_id
+        )
+        db.session.add(enrollment)
         db.session.commit()
         flash('Student added to class.', 'success')
-    else:
-        flash('Student already in class.', 'warning')
+    
     return redirect(url_for('manage_schedules', teacher_id=class_obj.teacher_id))
 
 @app.route('/admin/remove_student_from_class/<int:class_id>/<int:student_id>', methods=['POST'])
@@ -646,17 +715,134 @@ def add_student_to_class(class_id):
 def remove_student_from_class(class_id, student_id):
     if current_user.role != 'admin':
         abort(403)
-    class_obj = Class.query.get_or_404(class_id)
-    student = Student.query.get_or_404(student_id)
-    if student in class_obj.students:
-        class_obj.students.remove(student)
-        db.session.commit()
-        flash('Student removed from class.', 'success')
-    else:
-        flash('Student not in class.', 'warning')
+    enrollment = ClassStudent.query.filter_by(
+        class_id=class_id,
+        student_id=student_id
+    ).first_or_404()
+    
+    class_obj = Class.query.get(class_id)
+    db.session.delete(enrollment)
+    db.session.commit()
+    flash('Student removed from class.', 'success')
     return redirect(url_for('manage_schedules', teacher_id=class_obj.teacher_id))
+
+@app.route('/admin/add_users_csv', methods=['GET', 'POST'])
+@login_required
+def add_users_csv():
+    if current_user.role != 'admin':
+        flash('Access denied.', 'danger')
+        return redirect(url_for('index'))
+    
+    if request.method == 'POST':
+        if 'file' not in request.files:
+            flash('No file uploaded', 'danger')
+            return redirect(request.url)
+        
+        file = request.files['file']
+        if file.filename == '':
+            flash('No file selected', 'danger')
+            return redirect(request.url)
+        
+        if not file.filename.endswith('.csv'):
+            flash('Please upload a CSV file', 'danger')
+            return redirect(request.url)
+        
+        try:
+            # Read CSV file
+            stream = StringIO(file.stream.read().decode("UTF8"), newline=None)
+            csv_data = csv.DictReader(stream)
+            
+            # Process each row
+            success_count = 0
+            error_count = 0
+            for row in csv_data:
+                try:
+                    # Validate required fields
+                    required_fields = ['name', 'email', 'role', 'password']
+                    if not all(field in row for field in required_fields):
+                        error_count += 1
+                        continue
+                    
+                    # Check if email already exists
+                    if User.query.filter_by(email=row['email']).first():
+                        error_count += 1
+                        continue
+                    
+                    # Create new user
+                    new_user = User(
+                        name=row['name'],
+                        email=row['email'],
+                        role=row['role']
+                    )
+                    new_user.set_password(row['password'])
+                    
+                    db.session.add(new_user)
+                    success_count += 1
+                    
+                except Exception as e:
+                    error_count += 1
+                    print(f"Error processing row: {str(e)}")
+                    continue
+            
+            db.session.commit()
+            flash(f'Successfully added {success_count} users. {error_count} errors occurred.', 'success')
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error processing file: {str(e)}', 'danger')
+        
+        return redirect(url_for('add_users_csv'))
+    
+    return render_template('add_users_csv.html')
+
+@app.route('/admin/download_sample_csv')
+@login_required
+def download_sample_csv():
+    if current_user.role != 'admin':
+        flash('Access denied.', 'danger')
+        return redirect(url_for('index'))
+    
+    # Create sample CSV data
+    output = StringIO()
+    writer = csv.writer(output)
+    
+    # Write header
+    writer.writerow(['name', 'email', 'role', 'password'])
+    
+    # Write sample rows
+    writer.writerow(['John Doe', 'john@example.com', 'teacher', 'password123'])
+    writer.writerow(['Jane Smith', 'jane@example.com', 'student', 'password123'])
+    writer.writerow(['Bob Wilson', 'bob@example.com', 'parent', 'password123'])
+    
+    # Convert to bytes
+    output.seek(0)
+    bytes_output = BytesIO()
+    bytes_output.write(output.getvalue().encode('utf-8'))
+    bytes_output.seek(0)
+    
+    return send_file(
+        bytes_output,
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name='sample_users.csv'
+    )
 
 if __name__ == '__main__':
     with app.app_context():
+        # Drop all tables and recreate them
+        db.drop_all()
         db.create_all()
+        
+        # Create admin user if it doesn't exist
+        admin = User.query.filter_by(email='admin@example.com').first()
+        if not admin:
+            admin = User(
+                name='Admin',
+                email='admin@example.com',
+                role='admin'
+            )
+            admin.set_password('admin123')
+            db.session.add(admin)
+            db.session.commit()
+    
     app.run(debug=True) 

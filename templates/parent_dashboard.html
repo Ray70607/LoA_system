@@ -17,50 +17,22 @@
                 <div class="student-section mb-4">
                     <h4>{{ student.user.name }} (Grade {{ student.grade }})</h4>
                     <div class="table-responsive">
-                        <table class="table table-bordered">
+                        <table class="table">
                             <thead>
                                 <tr>
-                                    <th style="width: 100px">Time</th>
-                                    <th>Monday</th>
-                                    <th>Tuesday</th>
-                                    <th>Wednesday</th>
-                                    <th>Thursday</th>
-                                    <th>Friday</th>
+                                    <th>Class</th>
+                                    <th>Teacher</th>
+                                    <th>Classroom</th>
+                                    <th>Schedule</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% set time_slots = ['8:00-9:00', '9:00-10:00', '10:00-11:00', '11:00-12:00', '18:30-20:00', '20:10-21:20', '21:40-22:20'] %}
-                                {% for time_slot in time_slots %}
+                                {% for enrollment in student.class_enrollments %}
                                 <tr>
-                                    <td class="align-middle">{{ time_slot }}</td>
-                                    {% for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] %}
-                                    <td>
-                                        {% for class in student.classes %}
-                                            {% if day in class.schedule and time_slot in class.schedule %}
-                                                <div class="class-slot position-relative" 
-                                                     data-bs-toggle="tooltip" 
-                                                     data-bs-placement="top"
-                                                     title="{{ class.name }} - {{ class.teacher.name }}">
-                                                    <div class="class-name">{{ class.name }}</div>
-                                                    <div class="class-teacher small text-muted">{{ class.teacher.name }}</div>
-                                                    {% for absence in absences %}
-                                                        {% if absence.student_id == student.id and absence.class_id == class.id and absence.date == today %}
-                                                            <div class="absence-status mt-1">
-                                                                {% if absence.status == 'approved' %}
-                                                                    <span class="badge bg-success">Excused</span>
-                                                                {% elif absence.status == 'pending' %}
-                                                                    <span class="badge bg-warning">Pending</span>
-                                                                {% else %}
-                                                                    <span class="badge bg-danger">Rejected</span>
-                                                                {% endif %}
-                                                            </div>
-                                                        {% endif %}
-                                                    {% endfor %}
-                                                </div>
-                                            {% endif %}
-                                        {% endfor %}
-                                    </td>
-                                    {% endfor %}
+                                    <td>{{ enrollment.class_obj.name }}</td>
+                                    <td>{{ enrollment.class_obj.teacher.name }}</td>
+                                    <td>{{ enrollment.classroom.name }}</td>
+                                    <td>{{ enrollment.class_obj.schedule }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -86,6 +58,7 @@
                             <tr>
                                 <th>Student</th>
                                 <th>Class</th>
+                                <th>Teacher</th>
                                 <th>Date</th>
                                 <th>Reason</th>
                                 <th>Status</th>
@@ -97,6 +70,7 @@
                                 <tr>
                                     <td>{{ absence.student.user.name }}</td>
                                     <td>{{ absence.class_record.name }}</td>
+                                    <td>{{ absence.class_record.teacher.name }}</td>
                                     <td>{{ absence.date.strftime('%Y-%m-%d') }}</td>
                                     <td>{{ absence.reason }}</td>
                                     <td>
@@ -119,40 +93,5 @@
 .student-section {
     margin-bottom: 2rem;
 }
-
-.class-slot {
-    padding: 8px;
-    border-radius: 4px;
-    background-color: #f8f9fa;
-    margin-bottom: 4px;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-.class-slot:hover {
-    background-color: #e9ecef;
-}
-
-.class-name {
-    font-weight: 500;
-}
-
-.class-teacher {
-    font-size: 0.85em;
-}
-
-.absence-status {
-    margin-top: 4px;
-}
 </style>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize all tooltips
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl)
-    });
-});
-</script>
 {% endblock %} 

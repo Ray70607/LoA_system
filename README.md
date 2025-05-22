@@ -63,45 +63,48 @@ flask run
 
 ## Demo Accounts
 
+### Admin
+- Admin User (admin@example.com / admin123)
+
 ### Teachers
-- John Smith (smith@school.com / teacher123)
-- Sarah Jones (jones@school.com / teacher123)
-- Raj Patel (patel@school.com / teacher123)
+- Teacher 1 (teacher1@example.com / teacher123)
+- Teacher 2 (teacher2@example.com / teacher123)
+- Teacher 3 (teacher3@example.com / teacher123)
 
 ### Students
-- Jane Doe (jane.doe@school.com / student123) - 10th Grade
-- John Smith Jr. (john.smith@school.com / student123) - 9th Grade
-- Emma Wilson (emma.wilson@school.com / student123) - 11th Grade
-- Michael Brown (michael.brown@school.com / student123) - 10th Grade
+- Student 1 (student1@example.com / student123) - Grade 1
+- Student 2 (student2@example.com / student123) - Grade 1
+- Student 3 (student3@example.com / student123) - Grade 2
+- Student 4 (student4@example.com / student123) - Grade 2
+- Student 5 (student5@example.com / student123) - Grade 3
+- Student 6 (student6@example.com / student123) - Grade 3
+- Student 7 (student7@example.com / student123) - Grade 4
+- Student 8 (student8@example.com / student123) - Grade 4
+- Student 9 (student9@example.com / student123) - Grade 5
+- Student 10 (student10@example.com / student123) - Grade 5
 
 ### Parents
-- Mary Doe (mary.doe@email.com / parent123)
-- Jane Smith (jane.smith@email.com / parent123)
-- David Wilson (david.wilson@email.com / parent123)
-- Lisa Brown (lisa.brown@email.com / parent123)
-
-### Admin
-- Admin User (admin@school.com / admin123)
+- Parent 1 (parent1@example.com / parent123)
+- Parent 2 (parent2@example.com / parent123)
+- Parent 3 (parent3@example.com / parent123)
+- Parent 4 (parent4@example.com / parent123)
+- Parent 5 (parent5@example.com / parent123)
 
 ## Demo Classes
 
-### Mathematics (John Smith)
-- Algebra I (Monday 8:00-9:00)
-- Geometry (Monday 10:00-11:00)
-- Calculus (Wednesday 8:00-9:00)
-- Advanced Mathematics (Monday 18:30-20:00)
+### Class Schedule
+- Class 1 (Monday 8:00-9:00, Room 101)
+- Class 2 (Monday 9:00-10:00, Room 102)
+- Class 3 (Tuesday 8:00-9:00, Room 103)
+- Class 4 (Tuesday 9:00-10:00, Room 104)
+- Class 5 (Wednesday 8:00-9:00, Room 105)
+- Class 6 (Wednesday 9:00-10:00, Room 106)
+- Class 7 (Thursday 8:00-9:00, Room 107)
+- Class 8 (Thursday 9:00-10:00, Room 108)
+- Class 9 (Friday 8:00-9:00, Room 109)
+- Class 10 (Friday 9:00-10:00, Room 110)
 
-### Science (Sarah Jones)
-- Biology (Tuesday 8:00-9:00)
-- Chemistry (Tuesday 10:00-11:00)
-- Physics (Thursday 8:00-9:00)
-- Advanced Science (Tuesday 20:10-21:20)
-
-### English (Raj Patel)
-- English Literature (Monday 9:00-10:00)
-- Creative Writing (Wednesday 9:00-10:00)
-- Public Speaking (Friday 9:00-10:00)
-- Advanced English (Wednesday 21:40-22:20)
+Note: Each class is assigned to one of the three teachers in rotation, and all students are enrolled in all classes.
 
 ## Recent Updates
 

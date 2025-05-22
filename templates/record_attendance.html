@@ -1,58 +1,61 @@
 {% extends "base.html" %}
 
-{% block title %}Record Attendance - {{ class_record.name }}{% endblock %}
+{% block title %}Record Attendance - Leave of Absence System{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
-    <h2>Record Attendance - {{ class_record.name }}</h2>
+    <h2>Record Attendance for {{ class_record.name }}</h2>
+    <p class="text-muted">Schedule: {{ class_record.schedule }}</p>
     
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ category }}">{{ message }}</div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
-    
-    <!-- Date Selector -->
     <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Select Date</h5>
+        </div>
         <div class="card-body">
-            <form method="GET" class="row g-3">
-                <div class="col-md-6">
-                    <label for="date" class="form-label">Select Class Date</label>
-                    <select name="date" id="date" class="form-select" onchange="this.form.submit()">
-                        {% for class_date in next_class_dates %}
-                        <option value="{{ class_date.strftime('%Y-%m-%d') }}" 
-                                {% if class_date == date %}selected{% endif %}>
-                            {{ class_date.strftime('%A, %B %d, %Y') }}
-                        </option>
-                        {% endfor %}
-                    </select>
+            <div class="row">
+                {% for class_date in next_class_dates %}
+                <div class="col-auto">
+                    <a href="{{ url_for('record_attendance', class_id=class_record.id, date=class_date.strftime('%Y-%m-%d')) }}" 
+                       class="btn {% if class_date == date %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                        {{ class_date.strftime('%Y-%m-%d') }}
+                    </a>
                 </div>
-            </form>
+                {% endfor %}
+            </div>
         </div>
     </div>
-    
-    <!-- Excused Students -->
+
     {% if absences %}
     <div class="card mb-4">
-        <div class="card-header bg-info text-white">
-            <h5 class="mb-0">Excused Students</h5>
+        <div class="card-header">
+            <h5 class="mb-0">Excused Absences</h5>
         </div>
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table">
                     <thead>
                         <tr>
-                            <th>Student Name</th>
+                            <th>Student</th>
+                            <th>Classroom</th>
                             <th>Reason</th>
+                            <th>Status</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for absence in absences %}
                         <tr>
                             <td>{{ absence.student.user.name }}</td>
+                            <td>
+                                {% for enrollment in class_record.enrollments %}
+                                    {% if enrollment.student_id == absence.student_id %}
+                                        {{ enrollment.classroom.name }}
+                                    {% endif %}
+                                {% endfor %}
+                            </td>
                             <td>{{ absence.reason }}</td>
+                            <td>
+                                <span class="badge bg-info">Excused</span>
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -61,11 +64,10 @@
         </div>
     </div>
     {% endif %}
-    
-    <!-- Attendance Form -->
+
     <div class="card">
         <div class="card-header">
-            <h5 class="mb-0">Mark Attendance</h5>
+            <h5 class="mb-0">Attendance for {{ date.strftime('%Y-%m-%d') }}</h5>
         </div>
         <div class="card-body">
             <form method="POST">
@@ -73,20 +75,23 @@
                     <table class="table">
                         <thead>
                             <tr>
-                                <th>Student Name</th>
-                                <th>Status</th>
+                                <th>Student</th>
+                                <th>Classroom</th>
+                                <th>Present</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for student in students_to_show %}
+                            {% for enrollment in students_to_show %}
                             <tr>
-                                <td>{{ student.user.name }}</td>
+                                <td>{{ enrollment.student.user.name }}</td>
+                                <td>{{ enrollment.classroom.name }}</td>
                                 <td>
                                     <div class="form-check">
-                                        <input type="checkbox" class="form-check-input" 
-                                               name="present_{{ student.id }}" 
-                                               checked>
-                                        <label class="form-check-label">Present</label>
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               name="present_{{ enrollment.student_id }}" 
+                                               id="present_{{ enrollment.student_id }}"
+                                               {% if enrollment.student_id in existing_records and existing_records[enrollment.student_id].is_present %}checked{% endif %}>
                                     </div>
                                 </td>
                             </tr>
@@ -94,9 +99,7 @@
                         </tbody>
                     </table>
                 </div>
-                <div class="mt-3">
-                    <button type="submit" class="btn btn-primary">Save Attendance</button>
-                </div>
+                <button type="submit" class="btn btn-primary">Save Attendance</button>
             </form>
         </div>
     </div>

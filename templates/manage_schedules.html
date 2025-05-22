@@ -42,10 +42,10 @@
                         <td>{{ class.schedule }}</td>
                         <td>
                             <ul class="list-unstyled mb-0">
-                                {% for student in class.students %}
+                                {% for enrollment in class_enrollments[class.id] %}
                                 <li>
-                                    {{ student.user.name }}
-                                    <form method="POST" action="{{ url_for('remove_student_from_class', class_id=class.id, student_id=student.id) }}" class="d-inline">
+                                    {{ enrollment.student.user.name }} ({{ enrollment.classroom.name }})
+                                    <form method="POST" action="{{ url_for('remove_student_from_class', class_id=class.id, student_id=enrollment.student.id) }}" class="d-inline">
                                         <button type="submit" class="btn btn-sm btn-outline-danger ms-2">Remove</button>
                                     </form>
                                 </li>
@@ -55,9 +55,15 @@
                                 <select class="form-select form-select-sm me-2" name="student_id" required>
                                     <option value="">Add student...</option>
                                     {% for student in all_students %}
-                                        {% if student not in class.students %}
+                                        {% if not class_enrollments[class.id]|selectattr('student.id', 'equalto', student.id)|list %}
                                             <option value="{{ student.id }}">{{ student.user.name }} ({{ student.grade }})</option>
                                         {% endif %}
+                                    {% endfor %}
+                                </select>
+                                <select class="form-select form-select-sm me-2" name="classroom_id" required>
+                                    <option value="">Select classroom...</option>
+                                    {% for classroom in class.classrooms %}
+                                        <option value="{{ classroom.id }}">{{ classroom.name }}</option>
                                     {% endfor %}
                                 </select>
                                 <button type="submit" class="btn btn-sm btn-outline-primary">Add</button>
@@ -113,6 +119,16 @@
                                 <option value="21:40-22:20">21:40-22:20</option>
                             </select>
                         </div>
+                        <div class="mb-3">
+                            <label class="form-label">Classrooms</label>
+                            <div id="classrooms-container">
+                                <div class="input-group mb-2">
+                                    <input type="text" class="form-control" name="classroom_names[]" placeholder="Classroom name" required>
+                                    <button type="button" class="btn btn-outline-danger remove-classroom">Remove</button>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="add-classroom">Add Another Classroom</button>
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -124,4 +140,27 @@
     </div>
     {% endif %}
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const container = document.getElementById('classrooms-container');
+    const addButton = document.getElementById('add-classroom');
+    
+    addButton.addEventListener('click', function() {
+        const div = document.createElement('div');
+        div.className = 'input-group mb-2';
+        div.innerHTML = `
+            <input type="text" class="form-control" name="classroom_names[]" placeholder="Classroom name" required>
+            <button type="button" class="btn btn-outline-danger remove-classroom">Remove</button>
+        `;
+        container.appendChild(div);
+    });
+    
+    container.addEventListener('click', function(e) {
+        if (e.target.classList.contains('remove-classroom')) {
+            e.target.parentElement.remove();
+        }
+    });
+});
+</script>
 {% endblock %} 

@@ -3,113 +3,121 @@
 {% block title %}Teacher Dashboard - Leave of Absence System{% endblock %}
 
 {% block content %}
-<h1 class="mb-4">Teacher Dashboard</h1>
-
-<div class="row">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="card-title mb-0">Weekly Schedule</h5>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-bordered">
-                        <thead>
-                            <tr>
-                                <th style="width: 100px">Time</th>
-                                <th>Monday</th>
-                                <th>Tuesday</th>
-                                <th>Wednesday</th>
-                                <th>Thursday</th>
-                                <th>Friday</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% set time_slots = ['8:00-9:00', '9:00-10:00', '10:00-11:00', '11:00-12:00', '18:30-20:00', '20:10-21:20', '21:40-22:20'] %}
-                            {% for time_slot in time_slots %}
-                            <tr>
-                                <td class="align-middle">{{ time_slot }}</td>
-                                {% for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] %}
-                                <td>
-                                    {% for class in classes %}
-                                        {% if day in class.schedule and time_slot in class.schedule %}
-                                            <div class="class-slot position-relative" 
-                                                 data-bs-toggle="tooltip" 
-                                                 data-bs-placement="top"
-                                                 title="{{ class.name }} - {{ class.students|length }} students">
-                                                <div class="class-name">
-                                                    <a href="{{ url_for('record_attendance', class_id=class.id) }}" class="text-decoration-none">
-                                                        {{ class.name }}
-                                                    </a>
+<div class="container mt-4">
+    <h2>Welcome, {{ current_user.name }}</h2>
+    
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">My Schedule</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Monday</th>
+                                    <th>Tuesday</th>
+                                    <th>Wednesday</th>
+                                    <th>Thursday</th>
+                                    <th>Friday</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% set time_slots = ['8:00-9:00', '9:00-10:00', '10:00-11:00', '11:00-12:00', '18:30-20:00', '20:10-21:20', '21:40-22:20'] %}
+                                {% for time_slot in time_slots %}
+                                <tr>
+                                    <td class="align-middle">{{ time_slot }}</td>
+                                    {% for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] %}
+                                    <td>
+                                        {% for class in classes %}
+                                            {% if day in class.schedule and time_slot in class.schedule %}
+                                                <div class="class-slot position-relative" 
+                                                     data-bs-toggle="tooltip" 
+                                                     data-bs-placement="top"
+                                                     title="{{ class.name }} - {{ class.enrollments|length }} students">
+                                                    <div class="class-name">
+                                                        <a href="{{ url_for('record_attendance', class_id=class.id) }}" class="text-decoration-none">
+                                                            {{ class.name }}
+                                                        </a>
+                                                    </div>
+                                                    <div class="class-info small text-muted">
+                                                        {{ class.enrollments|length }} students
+                                                    </div>
+                                                    <div class="excused-students mt-2">
+                                                        {% for absence in absences %}
+                                                            {% if absence.class_id == class.id and absence.status == 'approved' %}
+                                                                <div class="excused-student">
+                                                                    <span class="badge bg-success">{{ absence.student.user.name }}</span>
+                                                                </div>
+                                                            {% endif %}
+                                                        {% endfor %}
+                                                    </div>
                                                 </div>
-                                                <div class="class-info small text-muted">
-                                                    {{ class.students|length }} students
-                                                </div>
-                                                <div class="excused-students mt-2">
-                                                    {% for absence in absences %}
-                                                        {% if absence.class_id == class.id and absence.status == 'approved' %}
-                                                            <div class="excused-student">
-                                                                <span class="badge bg-success">{{ absence.student.user.name }}</span>
-                                                            </div>
-                                                        {% endif %}
-                                                    {% endfor %}
-                                                </div>
-                                            </div>
-                                        {% endif %}
+                                            {% endif %}
+                                        {% endfor %}
+                                    </td>
                                     {% endfor %}
-                                </td>
+                                </tr>
                                 {% endfor %}
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<div class="row mt-4">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="card-title mb-0">Pending Leave Requests</h5>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Student</th>
-                                <th>Class</th>
-                                <th>Date</th>
-                                <th>Reason</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for absence in absences %}
-                                {% if absence.status == 'pending' %}
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Recent Leave Requests</h5>
+                </div>
+                <div class="card-body">
+                    {% if absences %}
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
                                 <tr>
-                                    <td>{{ absence.student.user.name }}</td>
-                                    <td>{{ absence.class_record.name }}</td>
+                                    <th>Date</th>
+                                    <th>Class</th>
+                                    <th>Student</th>
+                                    <th>Reason</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for absence in absences %}
+                                <tr>
                                     <td>{{ absence.date.strftime('%Y-%m-%d') }}</td>
+                                    <td>{{ absence.class_record.name }}</td>
+                                    <td>{{ absence.student.user.name }}</td>
                                     <td>{{ absence.reason }}</td>
                                     <td>
+                                        <span class="badge {% if absence.status == 'approved' %}bg-success{% elif absence.status == 'rejected' %}bg-danger{% else %}bg-warning{% endif %}">
+                                            {{ absence.status }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if absence.status == 'pending' %}
                                         <form method="POST" action="{{ url_for('update_absence_status', absence_id=absence.id) }}" class="d-inline">
-                                            <input type="hidden" name="status" value="approved">
-                                            <button type="submit" class="btn btn-success btn-sm">Approve</button>
+                                            <button type="submit" name="status" value="approved" class="btn btn-sm btn-success">Approve</button>
+                                            <button type="submit" name="status" value="rejected" class="btn btn-sm btn-danger">Reject</button>
                                         </form>
-                                        <form method="POST" action="{{ url_for('update_absence_status', absence_id=absence.id) }}" class="d-inline">
-                                            <input type="hidden" name="status" value="rejected">
-                                            <button type="submit" class="btn btn-danger btn-sm">Reject</button>
-                                        </form>
+                                        {% endif %}
                                     </td>
                                 </tr>
-                                {% endif %}
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No leave requests found.</p>
+                    {% endif %}
                 </div>
             </div>
         </div>
