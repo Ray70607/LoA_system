@@ -7,6 +7,7 @@ from flask_migrate import Migrate
 import os
 import csv
 from io import StringIO, BytesIO
+from functools import wraps
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'  # Change this in production
@@ -105,6 +106,15 @@ class Attendance(db.Model):
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.role != 'admin':
+            flash('Access denied. Admin privileges required.', 'danger')
+            return redirect(url_for('index'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 # Routes
 @app.route('/')
@@ -826,6 +836,76 @@ def download_sample_csv():
         as_attachment=True,
         download_name='sample_users.csv'
     )
+
+@app.route('/copy_class/<int:class_id>', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def copy_class(class_id):
+    original_class = Class.query.get_or_404(class_id)
+    
+    if request.method == 'POST':
+        new_teacher_id = request.form.get('teacher_id')
+        new_day = request.form.get('day')
+        new_time = request.form.get('time')
+        new_name = request.form.get('name')
+        
+        # Combine day and time for schedule
+        new_schedule = f"{new_day} {new_time}"
+        
+        # Create new class
+        new_class = Class(
+            name=new_name,
+            teacher_id=new_teacher_id,
+            schedule=new_schedule
+        )
+        db.session.add(new_class)
+        db.session.flush()  # Get the new class ID
+        
+        # Get all enrollments from original class
+        original_enrollments = ClassStudent.query.filter_by(class_id=class_id).all()
+        
+        # Track successful and failed enrollments
+        successful_enrollments = []
+        failed_enrollments = []
+        
+        for enrollment in original_enrollments:
+            # Check for scheduling conflicts
+            student_id = enrollment.student_id
+            classroom_id = enrollment.classroom_id
+            
+            # Check if student has any classes at the same time
+            conflicting_enrollments = ClassStudent.query.join(Class).filter(
+                ClassStudent.student_id == student_id,
+                Class.schedule == new_schedule
+            ).all()
+            
+            if not conflicting_enrollments:
+                # No conflicts, create new enrollment
+                new_enrollment = ClassStudent(
+                    student_id=student_id,
+                    class_id=new_class.id,
+                    classroom_id=classroom_id
+                )
+                db.session.add(new_enrollment)
+                successful_enrollments.append(enrollment.student.user.name)
+            else:
+                failed_enrollments.append(enrollment.student.user.name)
+        
+        try:
+            db.session.commit()
+            flash(f'Class copied successfully! {len(successful_enrollments)} students enrolled, {len(failed_enrollments)} students omitted due to scheduling conflicts.', 'success')
+            if failed_enrollments:
+                flash(f'Students omitted due to conflicts: {", ".join(failed_enrollments)}', 'warning')
+            return redirect(url_for('manage_schedules', teacher_id=new_teacher_id))
+        except Exception as e:
+            db.session.rollback()
+            flash('Error copying class. Please try again.', 'error')
+            return redirect(url_for('copy_class', class_id=class_id))
+    
+    teachers = User.query.filter_by(role='teacher').all()
+    return render_template('copy_class.html', 
+                         original_class=original_class,
+                         teachers=teachers)
 
 if __name__ == '__main__':
     with app.app_context():

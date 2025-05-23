@@ -70,9 +70,14 @@
                             </form>
                         </td>
                         <td>
-                            <form method="POST" action="{{ url_for('remove_class', class_id=class.id) }}" class="d-inline">
-                                <button type="submit" class="btn btn-danger btn-sm">Remove Class</button>
+                            <form action="{{ url_for('remove_class', class_id=class.id) }}" method="POST" class="d-inline">
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to remove this class?')">
+                                    <i class="fas fa-trash"></i> Remove
+                                </button>
                             </form>
+                            <a href="{{ url_for('copy_class', class_id=class.id) }}" class="btn btn-info btn-sm">
+                                <i class="fas fa-copy"></i> Copy Class
+                            </a>
                         </td>
                     </tr>
                     {% endfor %}

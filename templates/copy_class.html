@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Copy Class - Leave of Absence System{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Copy Class</h2>
+    
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="mb-0">Original Class Details</h5>
+        </div>
+        <div class="card-body">
+            <p><strong>Class Name:</strong> {{ original_class.name }}</p>
+            <p><strong>Teacher:</strong> {{ original_class.teacher.name }}</p>
+            <p><strong>Schedule:</strong> {{ original_class.schedule }}</p>
+            <p><strong>Number of Students:</strong> {{ original_class.enrollments|length }}</p>
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="mb-0">New Class Details</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                <div class="mb-3">
+                    <label for="name" class="form-label">New Class Name</label>
+                    <input type="text" class="form-control" id="name" name="name" required 
+                           value="{{ original_class.name }} (Copy)">
+                </div>
+                
+                <div class="mb-3">
+                    <label for="teacher_id" class="form-label">Teacher</label>
+                    <select class="form-select" id="teacher_id" name="teacher_id" required>
+                        {% for teacher in teachers %}
+                        <option value="{{ teacher.id }}" 
+                                {% if teacher.id == original_class.teacher_id %}selected{% endif %}>
+                            {{ teacher.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="day" class="form-label">Day</label>
+                    <select class="form-select" id="day" name="day" required>
+                        <option value="">Select day...</option>
+                        <option value="Monday">Monday</option>
+                        <option value="Tuesday">Tuesday</option>
+                        <option value="Wednesday">Wednesday</option>
+                        <option value="Thursday">Thursday</option>
+                        <option value="Friday">Friday</option>
+                    </select>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="time" class="form-label">Time</label>
+                    <select class="form-select" id="time" name="time" required>
+                        <option value="">Select time...</option>
+                        <option value="8:00-9:00">8:00-9:00</option>
+                        <option value="9:00-10:00">9:00-10:00</option>
+                        <option value="10:00-11:00">10:00-11:00</option>
+                        <option value="11:00-12:00">11:00-12:00</option>
+                        <option value="18:30-20:00">18:30-20:00</option>
+                        <option value="20:10-21:20">20:10-21:20</option>
+                        <option value="21:40-22:20">21:40-22:20</option>
+                    </select>
+                </div>
+                
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> Note: Students with scheduling conflicts will be automatically omitted from the new class.
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Copy Class</button>
+                <a href="{{ url_for('manage_schedules', teacher_id=original_class.teacher_id) }}" class="btn btn-secondary">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const daySelect = document.getElementById('day');
+    const timeSelect = document.getElementById('time');
+    
+    // Parse the original schedule to pre-select the day and time
+    const originalSchedule = "{{ original_class.schedule }}";
+    const [originalDay, originalTime] = originalSchedule.split(' ');
+    
+    if (originalDay) {
+        daySelect.value = originalDay;
+    }
+    if (originalTime) {
+        timeSelect.value = originalTime;
+    }
+});
+</script>
+{% endblock %} 
